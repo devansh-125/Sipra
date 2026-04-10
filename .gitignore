@@ -1,0 +1,9 @@
+# Ignore Node dependencies
+node_modules/
+
+# Ignore environment variables (passwords/keys)
+.env
+
+# Ignore Python cache (for your ai-service)
+__pycache__/
+*.pyc
