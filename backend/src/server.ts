@@ -8,6 +8,8 @@ import routeNetworkRouter from './routes/routes.js';
 import disruptionsRouter from './routes/disruptions.js';
 import aiRouter from './routes/ai.js';
 import alertsRouter from './routes/alerts.js';
+import dashboardRouter from './routes/analytics.js';
+import demoRouter from './routes/demo.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { emitSocketEvent, initSocket } from './socket.js';
 
@@ -31,6 +33,8 @@ app.use('/api/shipments', shipmentsRouter);
 app.use('/api', routeNetworkRouter);
 app.use('/api/disruptions', disruptionsRouter);
 app.use('/api/alerts', alertsRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/demo', demoRouter);
 app.use('/ai', aiRouter);
 
 app.use(notFoundHandler);
