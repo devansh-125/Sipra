@@ -9,57 +9,9 @@ import { dashboardApi } from '../../services/api/dashboardApi.ts';
 import { apiRequest } from '../../services/api/httpClient.ts';
 import { useMapLayers } from '../../hooks/useMapLayers.ts';
 import type { ApiResponse } from '../../types/api.ts';
+import type { MapDataPayload, MapDisruptionPoint, MapNodePoint, MapRouteSegment, MapShipmentPoint } from '../../types/map.ts';
+import type { NetworkEdge } from '../../services/api/routesApi.ts';
 import { POLLING_INTERVAL_MS } from '../../utils/constants.ts';
-
-type MapShipment = {
-  id: string;
-  tracking_number: string;
-  status: string;
-  priority?: string;
-  latitude: number | string;
-  longitude: number | string;
-};
-
-type MapDisruption = {
-  id: string;
-  type: string;
-  severity: number | string;
-  status: string;
-  title?: string;
-  latitude: number | string;
-  longitude: number | string;
-};
-
-type MapNode = {
-  id: string;
-  name: string;
-  type: string;
-  city?: string;
-  country?: string;
-  latitude: number | string;
-  longitude: number | string;
-};
-
-type MapDataPayload = {
-  shipments: MapShipment[];
-  disruptions: MapDisruption[];
-  nodes: MapNode[];
-};
-
-type NetworkEdge = {
-  id: string;
-  from_node_id: string;
-  to_node_id: string;
-  current_risk_score?: number | string;
-  is_blocked?: boolean;
-};
-
-type RouteSegment = {
-  id: string;
-  points: Array<[number, number]>;
-  risk: number;
-  isBlocked: boolean;
-};
 
 function toNumber(value: unknown, fallback = 0): number {
   const parsed = Number.parseFloat(String(value));
@@ -139,7 +91,7 @@ export default function LargeMapPanel() {
     return map;
   }, [mapData.nodes]);
 
-  const normalizedShipments = useMemo(() => {
+  const normalizedShipments = useMemo<MapShipmentPoint[]>(() => {
     return mapData.shipments
       .filter((shipment) => hasValidCoordinate(shipment.latitude, shipment.longitude))
       .map((shipment) => ({
@@ -149,7 +101,7 @@ export default function LargeMapPanel() {
       }));
   }, [mapData.shipments]);
 
-  const normalizedDisruptions = useMemo(() => {
+  const normalizedDisruptions = useMemo<MapDisruptionPoint[]>(() => {
     return mapData.disruptions
       .filter((disruption) => hasValidCoordinate(disruption.latitude, disruption.longitude))
       .map((disruption) => ({
@@ -160,7 +112,7 @@ export default function LargeMapPanel() {
       }));
   }, [mapData.disruptions]);
 
-  const normalizedNodes = useMemo(() => {
+  const normalizedNodes = useMemo<MapNodePoint[]>(() => {
     return mapData.nodes
       .filter((node) => hasValidCoordinate(node.latitude, node.longitude))
       .map((node) => ({
@@ -170,7 +122,7 @@ export default function LargeMapPanel() {
       }));
   }, [mapData.nodes]);
 
-  const routeSegments = useMemo<RouteSegment[]>(() => {
+  const routeSegments = useMemo<MapRouteSegment[]>(() => {
     return edges
       .map((edge) => {
         const from = nodeCoordinateMap.get(edge.from_node_id);
@@ -186,7 +138,7 @@ export default function LargeMapPanel() {
           isBlocked: Boolean(edge.is_blocked)
         };
       })
-      .filter((segment): segment is RouteSegment => Boolean(segment));
+      .filter((segment): segment is MapRouteSegment => Boolean(segment));
   }, [edges, nodeCoordinateMap]);
 
   const hasAnyData =

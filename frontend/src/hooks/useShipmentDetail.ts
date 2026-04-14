@@ -6,7 +6,7 @@ import { useRealtime } from './useRealtime.ts';
 import type { ApiResponse } from '../types/api.ts';
 import type { Shipment } from '../types/shipment.ts';
 import type { AlertItem } from '../types/alert.ts';
-import { POLLING_INTERVAL_MS } from '../utils/constants.ts';
+import { POLLING_INTERVAL_MS, SHIPMENT_DETAIL_REALTIME_EVENTS } from '../utils/constants.ts';
 
 type ShipmentRecord = Shipment & {
   updated_at?: string | null;
@@ -270,15 +270,6 @@ export function useShipmentDetail(options: UseShipmentDetailOptions = {}) {
       return;
     }
 
-    const watchedEvents = [
-      'shipment:updated',
-      'shipment:rerouted',
-      'shipment:delayed',
-      'shipment:delivered',
-      'alert:new',
-      'dashboard:refresh'
-    ];
-
     const handler = (payload: unknown) => {
       const eventShipmentId = extractRealtimeShipmentId(payload);
       const targetId = data.shipment?.id || shipmentId || null;
@@ -288,12 +279,12 @@ export function useShipmentDetail(options: UseShipmentDetailOptions = {}) {
       }
     };
 
-    watchedEvents.forEach((eventName) => {
+    SHIPMENT_DETAIL_REALTIME_EVENTS.forEach((eventName) => {
       realtime.on(eventName, handler);
     });
 
     return () => {
-      watchedEvents.forEach((eventName) => {
+      SHIPMENT_DETAIL_REALTIME_EVENTS.forEach((eventName) => {
         realtime.off(eventName, handler);
       });
     };

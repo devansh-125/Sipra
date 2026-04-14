@@ -1,52 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { Circle, CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import type { LatLngBoundsExpression } from 'leaflet';
-import type { MapLayerState } from '../../hooks/useMapLayers.ts';
+import type { SupplyChainMapProps } from '../../types/map.ts';
 import { MAP_COLORS } from '../../utils/constants.ts';
 import ShipmentPopupCard from './ShipmentPopupCard.tsx';
-
-type ShipmentPoint = {
-  id: string;
-  tracking_number: string;
-  status: string;
-  priority?: string;
-  latitude: number;
-  longitude: number;
-};
-
-type DisruptionPoint = {
-  id: string;
-  type: string;
-  severity: number;
-  status: string;
-  title?: string;
-  latitude: number;
-  longitude: number;
-};
-
-type NodePoint = {
-  id: string;
-  name: string;
-  type: string;
-  city?: string;
-  latitude: number;
-  longitude: number;
-};
-
-type RouteSegment = {
-  id: string;
-  points: Array<[number, number]>;
-  risk: number;
-  isBlocked: boolean;
-};
-
-type SupplyChainMapProps = {
-  layers: MapLayerState;
-  shipments: ShipmentPoint[];
-  disruptions: DisruptionPoint[];
-  nodes: NodePoint[];
-  routes: RouteSegment[];
-};
 
 function toColorByStatus(status: string): string {
   const normalized = status.toLowerCase();

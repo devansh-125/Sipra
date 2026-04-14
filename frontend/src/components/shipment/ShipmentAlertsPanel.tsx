@@ -7,17 +7,13 @@ import { alertsApi } from '../../services/api/alertsApi.ts';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
 import type { AlertItem } from '../../types/alert.ts';
-import type { Shipment } from '../../types/shipment.ts';
-import { getStatusTone } from '../../utils/statusColors.ts';
+import type { ShipmentRecord } from '../../types/shipment.ts';
+import { getSeverityTone, getStatusTone } from '../../utils/statusColors.ts';
+import { formatRelativeTime } from '../../utils/formatters.ts';
+import { toNumber, rankShipment, parseApiError } from '../../utils/helpers.ts';
 
 type ShipmentAlertsPanelProps = {
   shipmentId?: string;
-};
-
-type ShipmentRecord = Shipment & {
-  delay_probability?: number | null;
-  predicted_delay_min?: number | null;
-  risk_level?: string | null;
 };
 
 type AlertRecord = AlertItem & {
@@ -26,79 +22,12 @@ type AlertRecord = AlertItem & {
   shipment_id?: string | null;
 };
 
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function rankShipment(shipment: ShipmentRecord): number {
-  const probability = toNumber(shipment.delay_probability, 0);
-  const predictedDelayWeight = Math.min(1, toNumber(shipment.predicted_delay_min, 0) / 240);
-  const riskLevel = String(shipment.risk_level || '').toLowerCase();
-  const riskLevelWeight = riskLevel === 'critical' ? 1 : riskLevel === 'high' ? 0.8 : riskLevel === 'medium' ? 0.55 : 0.2;
-  return Math.max(probability, riskLevelWeight * 0.7 + predictedDelayWeight * 0.3);
-}
-
-function getSeverityTone(severity: number): 'red' | 'yellow' | 'blue' {
-  if (severity >= 8) {
-    return 'red';
-  }
-
-  if (severity >= 5) {
-    return 'yellow';
-  }
-
-  return 'blue';
-}
-
-function toRelativeTime(timestamp?: string): string {
-  if (!timestamp) {
-    return 'just now';
-  }
-
-  const parsed = Date.parse(timestamp);
-  if (Number.isNaN(parsed)) {
-    return 'just now';
-  }
-
-  const seconds = Math.max(0, Math.round((Date.now() - parsed) / 1000));
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 function formatAlertType(value?: string): string {
   if (!value) {
     return 'general';
   }
 
   return value.replace(/_/g, ' ');
-}
-
-function parseErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return 'Unable to load alerts';
-  }
-
-  try {
-    const parsed = JSON.parse(error.message) as { message?: string };
-    return parsed.message || error.message;
-  } catch {
-    return error.message;
-  }
 }
 
 export default function ShipmentAlertsPanel({ shipmentId }: ShipmentAlertsPanelProps) {
@@ -162,7 +91,7 @@ export default function ShipmentAlertsPanel({ shipmentId }: ShipmentAlertsPanelP
           .slice(0, 5)
       );
     } catch (loadError) {
-      setError(parseErrorMessage(loadError));
+      setError(parseApiError(loadError, 'Unable to load alerts'));
       setAlerts([]);
       setTargetShipment(null);
     } finally {
@@ -185,7 +114,7 @@ export default function ShipmentAlertsPanel({ shipmentId }: ShipmentAlertsPanelP
       await alertsApi.markRead(alertId);
       setAlerts((prev) => prev.map((alert) => (alert.id === alertId ? { ...alert, is_read: true } : alert)));
     } catch (markError) {
-      setError(parseErrorMessage(markError));
+      setError(parseApiError(markError, 'Unable to mark alert'));
     } finally {
       setMarkingAlertId(null);
     }
@@ -241,7 +170,7 @@ export default function ShipmentAlertsPanel({ shipmentId }: ShipmentAlertsPanelP
 
                   <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-400">
                     <span>{formatAlertType(alert.alert_type)}</span>
-                    <span>{toRelativeTime(alert.created_at)}</span>
+                    <span>{formatRelativeTime(alert.created_at)}</span>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between gap-2">

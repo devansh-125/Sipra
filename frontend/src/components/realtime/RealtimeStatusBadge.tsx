@@ -1,5 +1,7 @@
+import type { RealtimeConnectionState } from '../../types/realtime.ts';
+
 type RealtimeStatusBadgeProps = {
-  state: 'connected' | 'reconnecting' | 'disconnected';
+  state: RealtimeConnectionState;
   labelOverride?: string;
   compact?: boolean;
   showDot?: boolean;

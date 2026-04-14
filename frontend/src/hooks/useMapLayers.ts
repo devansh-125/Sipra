@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { MapLayerKey, MapLayerState } from '../types/map.ts';
+import { DEFAULT_MAP_LAYERS } from '../utils/constants.ts';
 
-export type MapLayerKey = 'shipments' | 'disruptions' | 'routes' | 'hubs';
-
-export type MapLayerState = Record<MapLayerKey, boolean>;
+export type { MapLayerKey, MapLayerState };
 
 type UseMapLayersOptions = {
   initialLayers?: Partial<MapLayerState>;
   storageKey?: string;
   persist?: boolean;
-};
-
-const DEFAULT_MAP_LAYERS: MapLayerState = {
-  shipments: true,
-  disruptions: true,
-  routes: true,
-  hubs: true
 };
 
 function mergeWithDefaults(partial?: Partial<MapLayerState>): MapLayerState {

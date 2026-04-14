@@ -1,18 +1,6 @@
 import { apiRequest } from './httpClient.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { AlertItem } from '../../types/alert.ts';
-
-export type AlertListQuery = {
-  is_read?: boolean;
-  alert_type?: string;
-  severity_gte?: number;
-  severity_lte?: number;
-  shipment_id?: string;
-  limit?: number;
-  offset?: number;
-};
-
-export type AlertPagingQuery = Pick<AlertListQuery, 'limit' | 'offset'>;
+import type { AlertItem, AlertListQuery, AlertPagingQuery } from '../../types/alert.ts';
 
 function toInt(value: unknown): number | undefined {
   const parsed = Number.parseInt(String(value), 10);

@@ -6,53 +6,15 @@ import EmptyState from '../common/EmptyState.tsx';
 import LastUpdatedStamp from '../realtime/LastUpdatedStamp.tsx';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { Shipment } from '../../types/shipment.ts';
+import type { ShipmentRecord } from '../../types/shipment.ts';
 import { formatMinutesToEta, formatPercent } from '../../utils/formatters.ts';
+import { toNumber, clamp, rankShipment, parseApiError } from '../../utils/helpers.ts';
 import { normalizeRiskLabel } from '../../utils/riskUtils.ts';
-import { getStatusTone } from '../../utils/statusColors.ts';
+import { getPriorityTone, getStatusTone } from '../../utils/statusColors.ts';
 
 type ShipmentSummaryCardProps = {
   shipmentId?: string;
 };
-
-type ShipmentRecord = Shipment & {
-  priority?: string | null;
-  progress_percentage?: number | null;
-  cargo_type?: string | null;
-  weight_kg?: number | null;
-  planned_arrival?: string | null;
-  updated_at?: string | null;
-};
-
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function clamp(value: number, min = 0, max = 1): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function rankShipment(shipment: ShipmentRecord): number {
-  const probability = clamp(toNumber(shipment.delay_probability, 0));
-  const delayWeight = Math.min(1, toNumber(shipment.predicted_delay_min, 0) / 240);
-  const level = String(shipment.risk_level || '').toLowerCase();
-  const levelWeight = level === 'critical' ? 1 : level === 'high' ? 0.8 : level === 'medium' ? 0.55 : 0.2;
-  return Math.max(probability, levelWeight * 0.65 + delayWeight * 0.35);
-}
-
-function parseErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return 'Unable to load shipment overview';
-  }
-
-  try {
-    const parsed = JSON.parse(error.message) as { message?: string };
-    return parsed.message || error.message;
-  } catch {
-    return error.message;
-  }
-}
 
 function formatEtaValue(value?: string | null): string {
   if (!value) {
@@ -73,24 +35,6 @@ function formatEtaValue(value?: string | null): string {
   }
 
   return `In ${formatMinutesToEta(diffMin)} (${clock})`;
-}
-
-function getPriorityTone(priority?: string | null): 'red' | 'yellow' | 'blue' | 'gray' {
-  const normalized = String(priority || '').toLowerCase();
-
-  if (normalized === 'critical') {
-    return 'red';
-  }
-
-  if (normalized === 'high') {
-    return 'yellow';
-  }
-
-  if (normalized === 'medium') {
-    return 'blue';
-  }
-
-  return 'gray';
 }
 
 export default function ShipmentSummaryCard({ shipmentId }: ShipmentSummaryCardProps) {
@@ -120,7 +64,7 @@ export default function ShipmentSummaryCard({ shipmentId }: ShipmentSummaryCardP
       setShipment(selected);
       setLoadedAt(new Date().toISOString());
     } catch (loadError) {
-      setError(parseErrorMessage(loadError));
+      setError(parseApiError(loadError, 'Unable to load shipment overview'));
       setShipment(null);
     } finally {
       setIsLoading(false);

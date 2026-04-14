@@ -3,14 +3,9 @@ import SectionCard from '../common/SectionCard.tsx';
 import { routesApi } from '../../services/api/routesApi.ts';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { Shipment } from '../../types/shipment.ts';
+import type { ShipmentRecord } from '../../types/shipment.ts';
 import { formatMinutesToEta, formatPercent } from '../../utils/formatters.ts';
-
-type ShipmentRecord = Shipment & {
-  delay_probability?: number | null;
-  predicted_delay_min?: number | null;
-  risk_level?: string | null;
-};
+import { toNumber, clamp, rankShipment, parseApiError } from '../../utils/helpers.ts';
 
 type ActiveRouteResponse = {
   routePlan: {
@@ -49,15 +44,6 @@ type ComparisonData = {
   recommendationScore: number;
 };
 
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function clamp(value: number, min = 0, max = 1): number {
-  return Math.max(min, Math.min(max, value));
-}
-
 function riskLabel(score: number): string {
   if (score >= 0.8) {
     return 'Critical';
@@ -79,27 +65,6 @@ function exposureLabel(score: number): string {
     return 'Moderate';
   }
   return 'Low';
-}
-
-function rankShipment(shipment: ShipmentRecord): number {
-  const probability = toNumber(shipment.delay_probability, 0);
-  const predictedDelayWeight = Math.min(1, toNumber(shipment.predicted_delay_min, 0) / 240);
-  const riskLevel = String(shipment.risk_level || '').toLowerCase();
-  const riskLevelWeight = riskLevel === 'critical' ? 1 : riskLevel === 'high' ? 0.8 : riskLevel === 'medium' ? 0.55 : 0.2;
-  return Math.max(probability, riskLevelWeight * 0.65 + predictedDelayWeight * 0.35);
-}
-
-function parseErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return 'Unable to load route comparison';
-  }
-
-  try {
-    const parsed = JSON.parse(error.message) as { message?: string };
-    return parsed.message || error.message;
-  } catch {
-    return error.message;
-  }
 }
 
 export default function RouteComparisonCard({ shipmentId }: RouteComparisonCardProps) {
@@ -177,7 +142,7 @@ export default function RouteComparisonCard({ shipmentId }: RouteComparisonCardP
         recommendationScore
       });
     } catch (loadError) {
-      setError(parseErrorMessage(loadError));
+      setError(parseApiError(loadError, 'Unable to load route comparison'));
       setComparison(null);
     } finally {
       setIsLoading(false);

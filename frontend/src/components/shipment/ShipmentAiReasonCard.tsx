@@ -4,14 +4,10 @@ import EmptyState from '../common/EmptyState.tsx';
 import LoadingBlock from '../common/LoadingBlock.tsx';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { Shipment } from '../../types/shipment.ts';
+import type { ShipmentRecord } from '../../types/shipment.ts';
 import { formatMinutesToEta, formatPercent } from '../../utils/formatters.ts';
 import { normalizeRiskLabel } from '../../utils/riskUtils.ts';
-
-type ShipmentRecord = Shipment & {
-  updated_at?: string | null;
-  priority?: string | null;
-};
+import { toNumber, clamp, rankShipment, parseApiError } from '../../utils/helpers.ts';
 
 type Factor = {
   label: string;
@@ -22,23 +18,6 @@ type Factor = {
 type ShipmentAiReasonCardProps = {
   shipmentId?: string;
 };
-
-function clamp(value: number, min = 0, max = 1): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function shipmentRank(shipment: ShipmentRecord): number {
-  const probability = clamp(toNumber(shipment.delay_probability, 0));
-  const delayWeight = Math.min(1, toNumber(shipment.predicted_delay_min, 0) / 240);
-  const level = String(shipment.risk_level || '').toLowerCase();
-  const levelWeight = level === 'critical' ? 1 : level === 'high' ? 0.8 : level === 'medium' ? 0.55 : 0.2;
-  return Math.max(probability, levelWeight * 0.65 + delayWeight * 0.35);
-}
 
 function buildFactors(shipment: ShipmentRecord): Factor[] {
   const probability = clamp(toNumber(shipment.delay_probability, 0));
@@ -79,19 +58,6 @@ function buildFactors(shipment: ShipmentRecord): Factor[] {
     .slice(0, 3);
 }
 
-function parseErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return 'Unable to load AI reason data';
-  }
-
-  try {
-    const parsed = JSON.parse(error.message) as { message?: string };
-    return parsed.message || error.message;
-  } catch {
-    return error.message;
-  }
-}
-
 export default function ShipmentAiReasonCard({ shipmentId }: ShipmentAiReasonCardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,12 +78,12 @@ export default function ShipmentAiReasonCard({ shipmentId }: ShipmentAiReasonCar
         const active = (list.data || []).filter(
           (item) => item.status !== 'delivered' && item.status !== 'cancelled'
         );
-        selected = active.sort((a, b) => shipmentRank(b) - shipmentRank(a))[0] || null;
+        selected = active.sort((a, b) => rankShipment(b) - rankShipment(a))[0] || null;
       }
 
       setShipment(selected);
     } catch (loadError) {
-      setError(parseErrorMessage(loadError));
+      setError(parseApiError(loadError, 'Unable to load AI reason data'));
       setShipment(null);
     } finally {
       setIsLoading(false);

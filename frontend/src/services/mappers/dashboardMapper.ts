@@ -1,11 +1,12 @@
 import type {
   BottlenecksResponse,
+  DashboardKpi,
+  DashboardSummary,
   DashboardSummaryResponse,
   DelayTrendRow,
   MapDataResponse,
   RiskDistributionResponse
-} from '../api/dashboardApi.ts';
-import type { DashboardKpi, DashboardSummary } from '../../types/dashboard.ts';
+} from '../../types/dashboard.ts';
 
 export type DashboardDelayTrendPoint = {
   day: string;

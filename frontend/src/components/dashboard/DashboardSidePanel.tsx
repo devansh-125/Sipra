@@ -9,18 +9,15 @@ import { routesApi } from '../../services/api/routesApi.ts';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
 import type { AlertItem } from '../../types/alert.ts';
-import type { Shipment } from '../../types/shipment.ts';
+import type { ShipmentRecord } from '../../types/shipment.ts';
 import { formatPercent } from '../../utils/formatters.ts';
+import { mergeRiskSignals } from '../../utils/riskUtils.ts';
 import { getStatusTone } from '../../utils/statusColors.ts';
+import { toNumber } from '../../utils/helpers.ts';
 
 type AlertRecord = AlertItem & {
   severity?: number;
   message?: string;
-};
-
-type ShipmentRecord = Shipment & {
-  risk_level?: string | null;
-  delay_probability?: number | null;
 };
 
 type BottleneckNode = {
@@ -51,16 +48,8 @@ type PanelData = {
   rerouteSuggestions: RerouteSuggestion[];
 };
 
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
 function toRiskScore(shipment: ShipmentRecord): number {
-  const probability = toNumber(shipment.delay_probability, 0);
-  const level = String(shipment.risk_level || '').toLowerCase();
-  const levelScore = level === 'critical' ? 1 : level === 'high' ? 0.8 : level === 'medium' ? 0.55 : level === 'low' ? 0.3 : 0;
-  return Math.max(probability, levelScore);
+  return mergeRiskSignals(toNumber(shipment.delay_probability, 0), shipment.risk_level, { lowLabelScore: 0.3 });
 }
 
 function formatTimeDifference(minutes: number): string {

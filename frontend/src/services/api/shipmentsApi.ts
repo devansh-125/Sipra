@@ -1,85 +1,31 @@
 import { apiRequest } from './httpClient.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { Shipment, ShipmentStatus } from '../../types/shipment.ts';
+import type {
+  CreateShipmentPayload,
+  ListShipmentsQuery,
+  Shipment,
+  ShipmentEvent,
+  ShipmentLocationPayload,
+  ShipmentRecord,
+  ShipmentStatus,
+  UpdateShipmentStatusPayload
+} from '../../types/shipment.ts';
 
-export type ShipmentRecord = Shipment & {
-  origin_node_id?: string | null;
-  destination_node_id?: string | null;
-  current_node_id?: string | null;
-  carrier_id?: string | null;
-  priority?: 'low' | 'medium' | 'high' | 'critical' | string;
-  cargo_type?: string | null;
-  weight_kg?: number | null;
-  planned_departure?: string | null;
-  planned_arrival?: string | null;
-  actual_departure?: string | null;
-  actual_arrival?: string | null;
-  current_latitude?: number | null;
-  current_longitude?: number | null;
-  progress_percentage?: number | null;
-  updated_at?: string | null;
-};
-
-export type ShipmentEvent = {
-  id: string;
-  shipment_id: string;
-  event_type: 'created' | 'moved' | 'delayed' | 'rerouted' | 'delivered' | string;
-  node_id?: string | null;
-  latitude?: number | string | null;
-  longitude?: number | string | null;
-  description?: string | null;
-  event_time: string;
-  source?: 'simulator' | 'user' | 'rule_engine' | 'AI' | string;
-  metadata_json?: Record<string, unknown> | null;
-};
-
-export type ListShipmentsQuery = {
-  status?: ShipmentStatus;
-  carrier_id?: string;
-  limit?: number;
-  offset?: number;
-};
-
-export type CreateShipmentPayload = {
-  tracking_number?: string;
-  origin: string;
-  destination: string;
-  origin_node_id?: string | null;
-  destination_node_id?: string | null;
-  current_node_id?: string | null;
-  carrier_id?: string | null;
-  status?: ShipmentStatus;
-  priority?: 'low' | 'medium' | 'high' | 'critical';
-  cargo_type?: string | null;
-  weight_kg?: number | null;
-  planned_departure?: string | null;
-  planned_arrival?: string | null;
-  current_latitude?: number | null;
-  current_longitude?: number | null;
-  progress_percentage?: number;
-  current_eta?: string | null;
-  delay_probability?: number | null;
-  predicted_delay_min?: number | null;
-  risk_level?: string;
-  source?: string;
-  description?: string;
-  metadata_json?: Record<string, unknown>;
-};
-
-export type UpdateShipmentStatusPayload = {
-  status: ShipmentStatus;
-  source?: string;
-};
-
-export type ShipmentLocationPayload = {
-  latitude: number;
-  longitude: number;
-  node_id?: string | null;
-  current_eta?: string | null;
-  source?: string;
-  description?: string;
-  metadata_json?: Record<string, unknown>;
-};
+export type {
+  CreateShipmentPayload,
+  ListShipmentsQuery,
+  Shipment,
+  ShipmentEvent,
+  ShipmentEventSource,
+  ShipmentEventType,
+  ShipmentLocationPayload,
+  ShipmentPriority,
+  ShipmentRealtimeEventPayload,
+  ShipmentRecord,
+  ShipmentRiskLevel,
+  ShipmentStatus,
+  UpdateShipmentStatusPayload
+} from '../../types/shipment.ts';
 
 function toInt(value: unknown): number | undefined {
   const parsed = Number.parseInt(String(value), 10);
