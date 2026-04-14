@@ -11,5 +11,9 @@ joblib==1.4.2
 # --- Validation ---
 pydantic==2.10.4
 
+# --- LLM / Generative AI (via OpenRouter) ---
+openai>=1.40.0
+httpx>=0.27.0
+
 # --- Visualization (training only) ---
 matplotlib==3.10.0

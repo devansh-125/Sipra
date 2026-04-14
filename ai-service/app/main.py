@@ -18,11 +18,23 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from app.schemas.models import PredictDelayRequest, DetectAnomalyRequest, ScoreRouteRequest, SimulateDisruptionRequest
+from app.schemas.models import (
+    PredictDelayRequest, DetectAnomalyRequest, ScoreRouteRequest,
+    SimulateDisruptionRequest, ChatRequest,
+    FleetInsightsRequest, ShipmentExplainRequest, DisruptionReportRequest,
+)
 from app.services.prediction_service import load_models, predict_delay
 from app.services.disruption_detector import load_anomaly_models, detect_anomaly
 from app.services.route_optimizer import load_route_models, score_routes, recommend_route
 from app.services.simulation_service import load_simulation_models, simulate_disruption
+from app.services.gemini_service import chat as gemini_chat
+from app.services.narrative_service import (
+    generate_fleet_insights,
+    generate_shipment_explanation,
+    generate_disruption_report,
+    generate_briefing,
+)
+from app.services.agent_service import run_agent_cycle, get_agent_history
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +149,89 @@ async def simulate_disruption_endpoint(request: Request):
     result = simulate_disruption(req)
 
     return {"data": result.model_dump()}
+
+
+# ---------------------------------------------------------------------------
+# Chat endpoint (GenAI via OpenRouter)
+# ---------------------------------------------------------------------------
+@app.post("/ai/chat")
+async def chat_endpoint(request: Request):
+    await verify_api_key(request)
+
+    body = await request.json()
+    req = ChatRequest(**body)
+
+    messages = [msg.model_dump() for msg in req.messages]
+    result = await gemini_chat(messages, req.user_message)
+
+    return {"data": result}
+
+
+# ---------------------------------------------------------------------------
+# GenAI Narrative Insight Endpoints
+# ---------------------------------------------------------------------------
+@app.post("/ai/insights/fleet")
+async def fleet_insights_endpoint(request: Request):
+    await verify_api_key(request)
+
+    body = await request.json()
+    req = FleetInsightsRequest(**body)
+    result = await generate_fleet_insights({"shipments": req.shipments, "summary": req.summary})
+
+    return {"data": result}
+
+
+@app.post("/ai/insights/shipment")
+async def shipment_explain_endpoint(request: Request):
+    await verify_api_key(request)
+
+    body = await request.json()
+    req = ShipmentExplainRequest(**body)
+    result = await generate_shipment_explanation(req.shipment)
+
+    return {"data": result}
+
+
+@app.post("/ai/insights/disruption")
+async def disruption_report_endpoint(request: Request):
+    await verify_api_key(request)
+
+    body = await request.json()
+    req = DisruptionReportRequest(**body)
+    result = await generate_disruption_report(req.model_dump())
+
+    return {"data": result}
+
+
+@app.post("/ai/insights/briefing")
+async def briefing_endpoint(request: Request):
+    await verify_api_key(request)
+
+    result = await generate_briefing()
+
+    return {"data": result}
+
+
+# ---------------------------------------------------------------------------
+# Autonomous Agent Endpoints
+# ---------------------------------------------------------------------------
+@app.post("/ai/agent/run")
+async def agent_run_endpoint(request: Request):
+    await verify_api_key(request)
+
+    result = await run_agent_cycle()
+
+    return {"data": result}
+
+
+@app.get("/ai/agent/history")
+async def agent_history_endpoint(request: Request):
+    await verify_api_key(request)
+
+    limit = int(request.query_params.get("limit", "10"))
+    results = get_agent_history(limit)
+
+    return {"data": results}
 
 
 # ---------------------------------------------------------------------------

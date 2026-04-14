@@ -6,6 +6,9 @@ import LargeMapPanel from '../../components/dashboard/LargeMapPanel.tsx';
 import DashboardSidePanel from '../../components/dashboard/DashboardSidePanel.tsx';
 import DashboardChartsSection from '../../components/dashboard/DashboardChartsSection.tsx';
 import AiInsightsPanel from '../../components/dashboard/AiInsightsPanel.tsx';
+import GenAiReportPanel from '../../components/dashboard/GenAiReportPanel.tsx';
+import AiChatPanel from '../../components/dashboard/AiChatPanel.tsx';
+import AiAgentPanel from '../../components/dashboard/AiAgentPanel.tsx';
 import GodModeControls from '../../components/dashboard/GodModeControls.tsx';
 import RealtimeStatusBadge from '../../components/realtime/RealtimeStatusBadge.tsx';
 import LastUpdatedStamp from '../../components/realtime/LastUpdatedStamp.tsx';
@@ -91,12 +94,33 @@ export default function DashboardPage() {
           </div>
           <div className="xl:col-span-1 space-y-6">
             <DashboardSidePanel key={`side-${refreshNonce}`} />
-            <AiInsightsPanel key={`ai-${refreshNonce}`} />
-            <GodModeControls key={`god-${refreshNonce}`} />
           </div>
         </section>
 
         <DashboardChartsSection key={`charts-${refreshNonce}`} />
+
+        {/* ── Generative AI Section ──────────────────────────── */}
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold text-cyan-200 tracking-wide">
+            Generative AI Command Center
+          </h2>
+          <p className="text-xs text-slate-400">
+            AI-powered insights, autonomous agent, and natural-language assistant — all grounded in your live supply chain data.
+          </p>
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <GenAiReportPanel key={`genai-report-${refreshNonce}`} />
+          <AiChatPanel key={`chat-${refreshNonce}`} />
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AiAgentPanel key={`agent-${refreshNonce}`} />
+          <div className="space-y-6">
+            <AiInsightsPanel key={`ai-${refreshNonce}`} />
+            <GodModeControls key={`god-modes-${refreshNonce}`} />
+          </div>
+        </section>
       </div>
     </AppShell>
   );

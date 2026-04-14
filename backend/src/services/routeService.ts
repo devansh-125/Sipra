@@ -174,7 +174,7 @@ function mapEdgeToRouteSegment(edge: any, routePlanId: string, index: number) {
     congestion_risk: Math.min(1, normalizedRisk * 0.45),
     disruption_risk: Math.min(1, normalizedRisk * 0.2),
     final_score: normalizedRisk,
-    geometry_json: edge.geometry_json || []
+    geometry_json: JSON.stringify(edge.geometry_json || [])
   };
 }
 
@@ -357,7 +357,12 @@ export async function rerouteShipment(shipmentId: string, payload: RouteTriggerP
   const activeRoute = await getActiveRouteForShipment(shipmentId);
 
   if (!activeRoute) {
-    throw createHttpError(404, 'No active route found. Generate an initial route first.');
+    // No active route — generate an initial route instead of failing
+    const initialResult = await generateInitialRoute(shipmentId);
+    if (!initialResult) {
+      throw createHttpError(404, 'No route candidates available for this shipment.');
+    }
+    return initialResult;
   }
 
   const triggerType = ROUTE_PLAN_TRIGGERS.includes(payload.trigger_type) ? payload.trigger_type : 'manual';

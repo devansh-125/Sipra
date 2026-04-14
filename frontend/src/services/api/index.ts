@@ -1,6 +1,7 @@
 export { alertsApi } from './alertsApi.ts';
 export { dashboardApi } from './dashboardApi.ts';
 export { disruptionsApi } from './disruptionsApi.ts';
+export { genaiApi } from './genaiApi.ts';
 export { apiRequest } from './httpClient.ts';
 export type { RequestOptions } from './httpClient.ts';
 export { routesApi } from './routesApi.ts';

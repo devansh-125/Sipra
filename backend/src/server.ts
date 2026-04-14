@@ -7,6 +7,7 @@ import shipmentsRouter from './routes/shipments.js';
 import routeNetworkRouter from './routes/routes.js';
 import disruptionsRouter from './routes/disruptions.js';
 import aiRouter from './routes/ai.js';
+import genaiRouter from './routes/genai.js';
 import alertsRouter from './routes/alerts.js';
 import dashboardRouter from './routes/analytics.js';
 import demoRouter from './routes/demo.js';
@@ -36,6 +37,7 @@ app.use('/api/alerts', alertsRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/demo', demoRouter);
 app.use('/ai', aiRouter);
+app.use('/api/genai', genaiRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

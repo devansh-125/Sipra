@@ -164,3 +164,67 @@ class SimulateDisruptionResponse(BaseModel):
     scenario: DisruptionScenario
     persisted_disruption: dict | None = None
     model: SimulationModelInfo
+
+
+# ── Chat / LLM ───────────────────────────────────────────────────
+
+class ChatMessage(BaseModel):
+    role: str = Field(description="'user' or 'assistant'")
+    content: str = Field(default="")
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(default_factory=list, description="Conversation history")
+    user_message: str = Field(description="New message from the user")
+
+
+class ChatActionTaken(BaseModel):
+    tool: str
+    input: dict = Field(default_factory=dict)
+    output: dict | list | str = Field(default="")
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    actions_taken: list[ChatActionTaken] = Field(default_factory=list)
+    model: str
+
+
+# ── Narrative / GenAI Insights ───────────────────────────────────
+
+class FleetInsightsRequest(BaseModel):
+    shipments: list[dict] = Field(default_factory=list, description="Array of shipment objects with status, delay_probability, etc.")
+    summary: dict = Field(default_factory=dict, description="Optional dashboard summary object")
+
+
+class ShipmentExplainRequest(BaseModel):
+    shipment: dict = Field(description="Single shipment object with all fields")
+
+
+class DisruptionReportRequest(BaseModel):
+    type: str = Field(default="weather")
+    severity: float = Field(default=5, ge=1, le=10)
+    impacted_shipments: int = Field(default=0, ge=0)
+    estimated_delay_min: int = Field(default=0, ge=0)
+    location: str | None = None
+    extra: dict = Field(default_factory=dict, description="Any additional context")
+
+
+# ── Autonomous Agent ─────────────────────────────────────────────
+
+class AgentAction(BaseModel):
+    action_type: str = Field(description="Tool name that was called")
+    target_id: str | None = Field(default=None, description="Shipment/disruption/alert ID targeted")
+    details: dict = Field(default_factory=dict, description="Arguments passed to the tool")
+    result: dict | list | str = Field(default="", description="Tool call result")
+    timestamp: str = Field(default="", description="ISO timestamp of action")
+
+
+class AgentCycleResult(BaseModel):
+    observations_summary: str = Field(description="LLM summary of observations and actions taken")
+    actions: list[AgentAction] = Field(default_factory=list)
+    actions_count: int = Field(default=0)
+    started_at: str = Field(default="")
+    finished_at: str = Field(default="")
+    duration_seconds: float = Field(default=0)
+    model: str = Field(default="")

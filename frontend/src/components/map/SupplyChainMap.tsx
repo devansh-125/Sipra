@@ -1,42 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  GoogleMap,
-  useJsApiLoader,
-  Polyline,
-  Circle,
-  Marker,
-  InfoWindow,
-  TrafficLayer
-} from '@react-google-maps/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Circle, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { SupplyChainMapProps } from '../../types/map.ts';
 import { MAP_COLORS } from '../../utils/constants.ts';
 import ShipmentPopupCard from './ShipmentPopupCard.tsx';
 
-const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || '';
+const DARK_TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
-const containerStyle = { width: '100%', height: '100%' };
-const defaultCenter = { lat: 22.9734, lng: 78.6569 };
-
-const darkMapStyles = [
-  { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#263c3f' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#6b9a76' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#746855' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1f2835' }] },
-  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#f3d19c' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2f3948' }] },
-  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
-  { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#17263c' }] }
-];
+const defaultCenter: [number, number] = [22.9734, 78.6569];
 
 function toColorByStatus(status: string): string {
   const normalized = status.toLowerCase();
@@ -59,219 +32,173 @@ function riskLabelFromShipmentStatus(status: string): string {
   return 'Low';
 }
 
-type ActiveInfoWindow = {
-  position: google.maps.LatLngLiteral;
-  content: React.ReactNode;
-} | null;
-
-export default function SupplyChainMap({ layers, shipments, disruptions, nodes, routes }: SupplyChainMapProps) {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY });
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [activeInfo, setActiveInfo] = useState<ActiveInfoWindow>(null);
-
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-    setMapReady(true);
-  }, []);
+/** Auto-fits the map to visible data whenever layers/data change. */
+function FitBoundsController({ layers, shipments, disruptions, nodes, routes }: SupplyChainMapProps) {
+  const map = useMap();
 
   useEffect(() => {
-    if (!mapReady || !mapRef.current) return;
-    const map = mapRef.current;
-    const bounds = new google.maps.LatLngBounds();
-    let count = 0;
+    const points: [number, number][] = [];
 
     if (layers.shipments) {
-      for (const s of shipments) {
-        bounds.extend({ lat: s.latitude, lng: s.longitude });
-        count++;
-      }
+      for (const s of shipments) points.push([s.latitude, s.longitude]);
     }
     if (layers.disruptions) {
-      for (const d of disruptions) {
-        bounds.extend({ lat: d.latitude, lng: d.longitude });
-        count++;
-      }
+      for (const d of disruptions) points.push([d.latitude, d.longitude]);
     }
     if (layers.hubs) {
-      for (const n of nodes) {
-        bounds.extend({ lat: n.latitude, lng: n.longitude });
-        count++;
-      }
+      for (const n of nodes) points.push([n.latitude, n.longitude]);
     }
     if (layers.routes) {
       for (const r of routes) {
-        for (const [lat, lng] of r.points) {
-          bounds.extend({ lat, lng });
-          count++;
-        }
+        for (const [lat, lng] of r.points) points.push([lat, lng]);
       }
     }
 
-    if (count > 0) {
-      map.fitBounds(bounds, 28);
-      google.maps.event.addListenerOnce(map, 'idle', () => {
-        if ((map.getZoom() ?? 0) > 8) map.setZoom(8);
-      });
+    if (points.length > 0) {
+      const bounds = L.latLngBounds(points.map(([lat, lng]) => L.latLng(lat, lng)));
+      map.fitBounds(bounds, { padding: [28, 28], maxZoom: 8 });
     }
-  }, [mapReady, layers, shipments, disruptions, nodes, routes]);
+  }, [map, layers, shipments, disruptions, nodes, routes]);
 
-  if (!isLoaded) {
-    return (
-      <div className="flex h-[420px] items-center justify-center rounded-xl border border-slate-800 bg-slate-900/60">
-        <p className="text-sm text-slate-400">Loading Google Maps…</p>
-      </div>
-    );
-  }
+  return null;
+}
+
+export default function SupplyChainMap({ layers, shipments, disruptions, nodes, routes }: SupplyChainMapProps) {
+  const mapRef = useRef<L.Map | null>(null);
+
+  const validRoutes = useMemo(
+    () =>
+      routes
+        .map((route) => ({
+          ...route,
+          latLngs: route.points
+            .map(([lat, lng]) => [lat, lng] as [number, number])
+            .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng))
+        }))
+        .filter((r) => r.latLngs.length >= 2),
+    [routes]
+  );
 
   return (
     <div className="h-[420px] overflow-hidden rounded-xl border border-slate-800">
-      <GoogleMap
-        mapContainerStyle={containerStyle}
+      <MapContainer
         center={defaultCenter}
         zoom={5}
-        onLoad={onMapLoad}
-        onClick={() => setActiveInfo(null)}
-        options={{
-          styles: darkMapStyles,
-          disableDefaultUI: true,
-          zoomControl: true,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false
-        }}
+        scrollWheelZoom
+        zoomControl
+        attributionControl={false}
+        className="h-full w-full"
+        ref={mapRef}
       >
-        <TrafficLayer />
+        <TileLayer url={DARK_TILE_URL} attribution={TILE_ATTRIBUTION} />
+        <FitBoundsController
+          layers={layers}
+          shipments={shipments}
+          disruptions={disruptions}
+          nodes={nodes}
+          routes={routes}
+        />
 
+        {/* Route polylines */}
         {layers.routes &&
-          routes.map((route) => {
-            const path = route.points.map(([lat, lng]) => ({ lat, lng }));
+          validRoutes.map((route) => {
             const color = toColorByRisk(route.risk, route.isBlocked);
             return (
               <Polyline
                 key={route.id}
-                path={path}
-                options={{
-                  strokeColor: color,
-                  strokeWeight: 4,
-                  strokeOpacity: route.isBlocked ? 0 : 0.75,
-                  ...(route.isBlocked && {
-                    icons: [
-                      {
-                        icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.75, strokeColor: color, scale: 4 },
-                        offset: '0',
-                        repeat: '12px'
-                      }
-                    ]
-                  })
+                positions={route.latLngs}
+                pathOptions={{
+                  color,
+                  weight: 4,
+                  opacity: 0.75,
+                  dashArray: route.isBlocked ? '8 10' : undefined
                 }}
-                onClick={() =>
-                  setActiveInfo({
-                    position: path[0],
-                    content: (
-                      <div className="text-xs text-slate-200">
-                        <p className="font-semibold">Route {route.id.slice(0, 8)}</p>
-                        <p>Risk: {Math.round(route.risk * 100)}%</p>
-                        <p>Status: {route.isBlocked ? 'Blocked' : 'Active'}</p>
-                      </div>
-                    )
-                  })
-                }
-              />
+              >
+                <Popup>
+                  <div className="text-xs">
+                    <p className="font-semibold">Route {route.id.slice(0, 8)}</p>
+                    <p>Risk: {Math.round(route.risk * 100)}%</p>
+                    <p>Status: {route.isBlocked ? 'Blocked' : 'Active'}</p>
+                  </div>
+                </Popup>
+              </Polyline>
             );
           })}
 
+        {/* Shipment markers */}
         {layers.shipments &&
           shipments.map((shipment) => (
-            <Marker
+            <CircleMarker
               key={shipment.id}
-              position={{ lat: shipment.latitude, lng: shipment.longitude }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 8,
+              center={[shipment.latitude, shipment.longitude]}
+              radius={8}
+              pathOptions={{
                 fillColor: toColorByStatus(shipment.status),
                 fillOpacity: 0.85,
-                strokeColor: toColorByStatus(shipment.status),
-                strokeWeight: 2
+                color: toColorByStatus(shipment.status),
+                weight: 2
               }}
-              onClick={() =>
-                setActiveInfo({
-                  position: { lat: shipment.latitude, lng: shipment.longitude },
-                  content: (
-                    <ShipmentPopupCard
-                      trackingNumber={shipment.tracking_number}
-                      status={shipment.status}
-                      priority={shipment.priority}
-                      locationLabel={`${shipment.latitude.toFixed(2)}, ${shipment.longitude.toFixed(2)}`}
-                      riskLabel={riskLabelFromShipmentStatus(shipment.status)}
-                    />
-                  )
-                })
-              }
-            />
+            >
+              <Popup>
+                <ShipmentPopupCard
+                  trackingNumber={shipment.tracking_number}
+                  status={shipment.status}
+                  priority={shipment.priority}
+                  locationLabel={`${shipment.latitude.toFixed(2)}, ${shipment.longitude.toFixed(2)}`}
+                  riskLabel={riskLabelFromShipmentStatus(shipment.status)}
+                />
+              </Popup>
+            </CircleMarker>
           ))}
 
+        {/* Disruption circles */}
         {layers.disruptions &&
           disruptions.map((disruption) => (
             <Circle
               key={disruption.id}
-              center={{ lat: disruption.latitude, lng: disruption.longitude }}
+              center={[disruption.latitude, disruption.longitude]}
               radius={Math.max(8000, disruption.severity * 5000)}
-              options={{
-                strokeColor: MAP_COLORS.delayed,
+              pathOptions={{
+                color: MAP_COLORS.delayed,
                 fillColor: MAP_COLORS.delayed,
                 fillOpacity: 0.16,
-                strokeWeight: 1
+                weight: 1
               }}
-              onClick={() =>
-                setActiveInfo({
-                  position: { lat: disruption.latitude, lng: disruption.longitude },
-                  content: (
-                    <div className="text-xs text-slate-200">
-                      <p className="font-semibold">{disruption.title || disruption.type}</p>
-                      <p>Severity: {disruption.severity}</p>
-                      <p>Status: {disruption.status}</p>
-                    </div>
-                  )
-                })
-              }
-            />
+            >
+              <Popup>
+                <div className="text-xs">
+                  <p className="font-semibold">{disruption.title || disruption.type}</p>
+                  <p>Severity: {disruption.severity}</p>
+                  <p>Status: {disruption.status}</p>
+                </div>
+              </Popup>
+            </Circle>
           ))}
 
+        {/* Hub node markers */}
         {layers.hubs &&
           nodes.map((node) => (
-            <Marker
+            <CircleMarker
               key={node.id}
-              position={{ lat: node.latitude, lng: node.longitude }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 6,
+              center={[node.latitude, node.longitude]}
+              radius={6}
+              pathOptions={{
                 fillColor: '#94a3b8',
                 fillOpacity: 0.75,
-                strokeColor: '#cbd5e1',
-                strokeWeight: 2
+                color: '#cbd5e1',
+                weight: 2
               }}
-              onClick={() =>
-                setActiveInfo({
-                  position: { lat: node.latitude, lng: node.longitude },
-                  content: (
-                    <div className="text-xs text-slate-200">
-                      <p className="font-semibold">{node.name}</p>
-                      <p>{node.type}</p>
-                      <p>{node.city || 'Unknown city'}</p>
-                    </div>
-                  )
-                })
-              }
-            />
+            >
+              <Popup>
+                <div className="text-xs">
+                  <p className="font-semibold">{node.name}</p>
+                  <p>{node.type}</p>
+                  <p>{node.city || 'Unknown city'}</p>
+                </div>
+              </Popup>
+            </CircleMarker>
           ))}
-
-        {activeInfo && (
-          <InfoWindow position={activeInfo.position} onCloseClick={() => setActiveInfo(null)}>
-            <div>{activeInfo.content}</div>
-          </InfoWindow>
-        )}
-      </GoogleMap>
+      </MapContainer>
     </div>
   );
 }

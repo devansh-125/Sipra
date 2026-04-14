@@ -228,6 +228,112 @@ npm uninstall leaflet react-leaflet @types/leaflet
 
 ---
 
+## 11. OpenRouter API — Windows CRLF in `.env` Causing Connection Error
+
+**Error:**
+
+```
+openai.APIConnectionError: Connection error.
+```
+
+Deeper investigation with raw `httpx` revealed:
+
+```
+LocalProtocolError: Illegal header value b'Bearer sk-or-v1-...key...\r'
+```
+
+**Cause:** The `ai-service/.env` file was created/edited on Windows, so every line ended with `\r\n` (CRLF) instead of `\n` (LF). When `source .env && export OPENROUTER_API_KEY` was run in WSL/bash, the `\r` became part of the variable value. The `openai` SDK passed this tainted key in the `Authorization: Bearer <key>\r` header, which `httpx` rejected as an illegal header value.
+
+**Fix:**
+
+```bash
+# Strip carriage returns from .env
+sed -i 's/\r$//' ai-service/.env
+
+# Verify — lines should end with '$' not '^M$'
+cat -A ai-service/.env
+```
+
+**Prevention:** Always use LF line endings for `.env` files in WSL. In VS Code, check the bottom-right status bar — click "CRLF" and switch to "LF" before saving.
+
+---
+
+## 12. OpenAI SDK Default Timeout Too Short for WSL → OpenRouter
+
+**Error:**
+
+```
+openai.APIConnectionError: Connection error.
+```
+
+(Same error as #11, but persisted even after fixing CRLF.)
+
+**Cause:** The default `openai` SDK timeout is ~10 seconds. WSL DNS resolution + TLS handshake to OpenRouter (via Cloudflare at `104.18.3.115:443`) can take 5-15 seconds due to WSL's network stack overhead.
+
+**Fix:** Set explicit timeout on the OpenAI client:
+
+```python
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+    timeout=120.0,  # 2 minutes — generous for WSL latency
+)
+```
+
+Applied in both `gemini_service.py` and `agent_service.py`.
+
+---
+
+## 13. Autonomous Agent — Backend Route Endpoints Not Found (404)
+
+**Error (in agent cycle results):**
+
+```json
+{
+  "success": false,
+  "error": "Client error '404 Not Found' for url 'http://localhost:3001/api/routes/<shipment_id>/reroute'"
+}
+```
+
+**Cause:** The autonomous agent's `reroute_shipment` tool calls `POST /api/routes/:shipment_id/reroute`, but the backend doesn't have a reroute endpoint. Similarly, `PATCH /api/disruptions/:id/resolve` may not exist. The agent gracefully handles 404s — it logs the failure and moves on to other actions.
+
+**Status:** Not a bug — expected until Phase 4 (backend proxy routes) adds these endpoints. The agent already succeeds on endpoints that do exist (e.g., `PATCH /api/shipments/:id/status` worked and updated DEMO-1001 to "delayed").
+
+**Impact:** Agent is functional but limited. It can observe all data and update shipment statuses, but rerouting and disruption resolution will return 404 until backend routes are added.
+
+---
+
+## 14. GenAI Integration — Phase Summary (Phases 1–3)
+
+**Setup:**
+
+- SDK: `openai>=1.40.0` pointed at `https://openrouter.ai/api/v1`
+- Model: `google/gemini-2.0-flash-001` via OpenRouter
+- Config: `ai-service/.env` with `OPENROUTER_API_KEY`, `BACKEND_URL`, `LLM_MODEL`
+
+**Phase 1 — LLM Chat with Function Calling** (`gemini_service.py`):
+
+- `POST /ai/chat` — multi-turn conversation with 8 tool definitions
+- Tools: `predict_shipment_delay`, `detect_anomaly`, `score_routes`, `recommend_best_route`, `simulate_disruption`, `get_supply_chain_summary`, `get_active_disruptions`, `get_at_risk_shipments`
+- Max 6 tool-calling rounds per conversation turn
+
+**Phase 2 — Narrative Insight Endpoints** (`narrative_service.py`):
+
+- `POST /ai/insights/fleet` — fleet health summary with risk assessment
+- `POST /ai/insights/shipment` — single shipment delay explanation with factors
+- `POST /ai/insights/disruption` — executive disruption impact report
+- `POST /ai/insights/briefing` — auto-fetches live data, generates executive briefing
+
+**Phase 3 — Autonomous Agent** (`agent_service.py`):
+
+- `POST /ai/agent/run` — triggers one Observe → Reason → Act cycle
+- `GET /ai/agent/history` — returns last 10 cycle results
+- 5 agent tools: `get_supply_chain_state`, `reroute_shipment`, `resolve_disruption`, `update_shipment_status`, `mark_alert_read`
+- Agent fetches live data from 5 backend endpoints, reasons with LLM, executes write actions
+- Tested: agent observed 4 delayed shipments, attempted reroutes (404), successfully updated DEMO-1001 status to "delayed" — 11.4s cycle
+
+---
+
 ## Quick Reference — Common Commands
 
 ```bash
@@ -238,6 +344,7 @@ DATABASE_SSL=true npx tsx src/server.ts
 npx vite --host 0.0.0.0
 
 # Start AI service (from ai-service/)
+source .env && export OPENROUTER_API_KEY BACKEND_URL LLM_MODEL
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Run migrations
@@ -254,4 +361,20 @@ cd frontend && npx tsc --noEmit
 
 # Fix WSL DNS
 echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+
+# Fix .env CRLF
+sed -i 's/\r$//' ai-service/.env
+
+# Test GenAI Chat
+curl -X POST http://localhost:8000/ai/chat -H "Content-Type: application/json" \
+  -d '{"user_message":"How are my shipments?","messages":[]}'
+
+# Test Autonomous Agent
+curl -X POST http://localhost:8000/ai/agent/run
+
+# View Agent History
+curl http://localhost:8000/ai/agent/history
+
+# Test Narrative Insights
+curl -X POST http://localhost:8000/ai/insights/briefing
 ```
