@@ -32,3 +32,30 @@ class PredictDelayResponse(BaseModel):
     risk_level: str
     factors: dict[str, float]
     model: DelayModelInfo
+
+
+# ── Anomaly Detection ─────────────────────────────────────────────
+
+class DetectAnomalyRequest(BaseModel):
+    metrics: dict[str, float] = Field(default_factory=dict)
+    threshold: float = Field(default=0.7, ge=0, le=1)
+    use_remote: bool | None = None
+
+
+class AnomalyIndicator(BaseModel):
+    metric: str
+    score: float
+
+
+class AnomalyModelInfo(BaseModel):
+    name: str
+    version: str
+    source: str
+
+
+class DetectAnomalyResponse(BaseModel):
+    anomaly_score: float
+    threshold: float
+    is_anomaly: bool
+    top_indicators: list[AnomalyIndicator]
+    model: AnomalyModelInfo

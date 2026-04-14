@@ -18,8 +18,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from app.schemas.models import PredictDelayRequest
+from app.schemas.models import PredictDelayRequest, DetectAnomalyRequest
 from app.services.prediction_service import load_models, predict_delay
+from app.services.disruption_detector import load_anomaly_models, detect_anomaly
 
 
 # ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI):
     # Startup: load models
     print("[main] Loading ML models ...")
     load_models()
+    load_anomaly_models()
     print("[main] Models loaded. Ready to serve predictions.")
     yield
     # Shutdown
@@ -92,8 +94,12 @@ async def predict_delay_endpoint(request: Request):
 @app.post("/ai/detect-anomaly")
 async def detect_anomaly_endpoint(request: Request):
     await verify_api_key(request)
-    # TODO: implement anomaly detection service
-    raise HTTPException(status_code=501, detail="Anomaly detection not yet implemented")
+
+    body = await request.json()
+    req = DetectAnomalyRequest(**body)
+    result = detect_anomaly(req)
+
+    return {"data": result.model_dump()}
 
 
 @app.post("/ai/score-route")

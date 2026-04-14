@@ -99,11 +99,9 @@ def generate_anomaly_data(n: int, rng: np.random.Generator, threshold: float) ->
     for col in METRICS:
         df[col] = np.round(df[col], 4)
 
-    # Compute targets (matches backend heuristic + noise)
+    # Compute targets (matches backend heuristic — deterministic, NO noise)
     metric_values = df[METRICS].values
-    base_score = metric_values.mean(axis=1)
-    noise = rng.normal(0, 0.04, size=len(df))
-    anomaly_score = np.clip(base_score + noise, 0.0, 1.0)
+    anomaly_score = np.clip(metric_values.mean(axis=1), 0.0, 1.0)
 
     df["anomaly_score"] = np.round(anomaly_score, 4)
     df["threshold"] = threshold
