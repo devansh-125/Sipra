@@ -115,9 +115,8 @@ def generate_route_data(n: int, rng: np.random.Generator) -> pd.DataFrame:
         + cost_penalty * nw["cost"]
     )
 
-    # Add noise so the model learns patterns not the formula
-    noise = rng.normal(0, 0.05, size=n)
-    route_score = np.clip(1.0 - weighted_penalty + noise, 0.0, 1.0)
+    # Deterministic score — NO noise on target (same philosophy as delay model v2)
+    route_score = np.clip(1.0 - weighted_penalty, 0.0, 1.0)
 
     return pd.DataFrame({
         "distance_km": np.round(distance_km, 1),

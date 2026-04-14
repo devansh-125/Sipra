@@ -20,3 +20,21 @@ body {
   min-height: 100dvh;
   background: #020617;
 }
+
+/* Google Maps InfoWindow dark theme */
+.gm-style .gm-style-iw-c {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  padding: 4px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important;
+}
+.gm-style .gm-style-iw-d {
+  overflow: hidden !important;
+}
+.gm-style .gm-style-iw-tc::after {
+  background: #0f172a !important;
+}
+.gm-style .gm-ui-hover-effect {
+  filter: invert(1);
+}

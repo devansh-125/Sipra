@@ -195,10 +195,10 @@ async function persistRoutePlanForCandidate(trx: any, shipment: any, candidate: 
       total_distance_km: candidate.totalDistanceKm,
       total_duration_min: Math.round(candidate.totalDurationMin),
       risk_score: Math.min(1, candidate.averageRiskScore),
-      comparison_summary_json: {
+      comparison_summary_json: JSON.stringify({
         candidate_score: candidate.candidateScore,
         generated_by: 'node_route_service'
-      }
+      })
     })
     .returning('*');
 
@@ -210,7 +210,7 @@ async function persistRoutePlanForCandidate(trx: any, shipment: any, candidate: 
   const [routeRecord] = await trx('routes')
     .insert({
       shipment_id: shipment.id,
-      waypoints: candidate.waypoints,
+      waypoints: JSON.stringify(candidate.waypoints),
       distance_km: candidate.totalDistanceKm,
       estimated_time_hours: candidate.totalDurationMin / 60,
       weather_risk_score: Math.min(1, candidate.averageRiskScore * 0.6),
@@ -230,11 +230,11 @@ async function persistRoutePlanForCandidate(trx: any, shipment: any, candidate: 
     .where({ id: routePlan.id })
     .update(
       {
-        comparison_summary_json: {
-          ...routePlan.comparison_summary_json,
+        comparison_summary_json: JSON.stringify({
+          ...(typeof routePlan.comparison_summary_json === 'string' ? JSON.parse(routePlan.comparison_summary_json) : routePlan.comparison_summary_json || {}),
           linked_route_id: routeRecord.id,
           waypoints: candidate.waypoints
-        }
+        })
       },
       ['*']
     );
@@ -265,10 +265,10 @@ export async function generateInitialRoute(shipmentId: string, payload: RouteTri
       node_id: shipment.current_node_id,
       description: triggerType === 'initial' ? 'Initial route generated' : `Route generated (${triggerType})`,
       source: 'rule_engine',
-      metadata_json: {
+      metadata_json: JSON.stringify({
         route_plan_id: planResult.routePlan.id,
         trigger_type: triggerType
-      }
+      })
     });
 
     return planResult;
@@ -333,7 +333,7 @@ export async function getTopAlternativeRoutes(shipmentId: string, limit = 3) {
     .map((candidate) => ({
       shipment_id: shipmentId,
       original_route_id: latestPrimaryRoute?.id || null,
-      alternative_waypoints: candidate.waypoints,
+      alternative_waypoints: JSON.stringify(candidate.waypoints),
       time_difference: candidate.totalDurationMin - activeDuration,
       cost_difference: candidate.totalDistanceKm - activeDistance,
       recommendation_score: Math.max(0, Math.min(1, 1 - candidate.candidateScore / 1000))
@@ -379,10 +379,10 @@ export async function rerouteShipment(shipmentId: string, payload: RouteTriggerP
       node_id: shipment.current_node_id,
       description: payload.reason || 'Shipment rerouted',
       source: 'user',
-      metadata_json: {
+      metadata_json: JSON.stringify({
         route_plan_id: rerouteResult.routePlan.id,
         trigger_type: triggerType
-      }
+      })
     });
 
     return rerouteResult;

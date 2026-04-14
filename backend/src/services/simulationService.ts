@@ -2,7 +2,7 @@ import db from '../db/connection.js';
 import { generateDisruptionScenario, predictDelay } from './aiService.js';
 import { simulateDisruption } from './disruptionService.js';
 import { generateInitialRoute, rerouteShipment } from './routeService.js';
-import { createShipment, updateShipmentStatus } from './shipmentService.js';
+import { updateShipmentStatus } from './shipmentService.js';
 
 type SeedOptions = {
 	shipment_count?: number;
@@ -44,7 +44,7 @@ async function ensureDemoCarrier(trx: any) {
 			name: 'Demo Logistics Carrier',
 			code: DEMO_CARRIER_CODE,
 			reliability_score: 0.76,
-			transport_modes: ['road', 'rail', 'air']
+			transport_modes: JSON.stringify(['road', 'rail', 'air'])
 		})
 		.returning('*');
 
@@ -63,7 +63,11 @@ async function insertDemoNode(trx: any, node: Record<string, unknown>) {
 }
 
 async function insertDemoEdge(trx: any, edge: Record<string, unknown>) {
-	const [created] = await trx('network_edges').insert(edge).returning('*');
+	const payload = { ...edge };
+	if (Array.isArray(payload.geometry_json)) {
+		payload.geometry_json = JSON.stringify(payload.geometry_json);
+	}
+	const [created] = await trx('network_edges').insert(payload).returning('*');
 	return created;
 }
 
@@ -356,18 +360,64 @@ export async function seedDemoData(options: SeedOptions = {}) {
 		const seededShipments = [];
 
 		for (const payload of shipmentPayloads) {
-			const shipment = await createShipment(payload);
-			const routeResult = await generateInitialRoute(shipment.id, { trigger_type: 'initial' });
+			const insertData: Record<string, unknown> = {
+				tracking_number: payload.tracking_number,
+				origin: payload.origin,
+				destination: payload.destination,
+				origin_node_id: payload.origin_node_id || null,
+				destination_node_id: payload.destination_node_id || null,
+				current_node_id: payload.current_node_id || payload.origin_node_id || null,
+				carrier_id: payload.carrier_id || null,
+				status: payload.status || 'pending',
+				priority: payload.priority || 'medium',
+				cargo_type: payload.cargo_type || null,
+				weight_kg: payload.weight_kg ?? null,
+				planned_departure: payload.planned_departure || null,
+				planned_arrival: payload.planned_arrival || null,
+				current_latitude: payload.current_latitude ?? null,
+				current_longitude: payload.current_longitude ?? null,
+				progress_percentage: payload.progress_percentage ?? 0,
+				risk_level: 'low',
+				updated_at: trx.fn.now()
+			};
+
+			if (payload.current_latitude != null && payload.current_longitude != null) {
+				insertData.current_location = trx.raw(
+					'ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography',
+					[payload.current_longitude, payload.current_latitude]
+				);
+			}
+
+			const [shipment] = await trx('shipments').insert(insertData).returning('*');
+
+			await trx('shipment_events').insert({
+				shipment_id: shipment.id,
+				event_type: 'created',
+				node_id: shipment.current_node_id,
+				latitude: shipment.current_latitude,
+				longitude: shipment.current_longitude,
+				description: payload.description || 'Shipment created',
+				source: 'simulator'
+			});
+
+			let routeResult: any = null;
+			try {
+				routeResult = await generateInitialRoute(shipment.id, { trigger_type: 'initial' });
+			} catch { /* route generation may fail without full graph — skip */ }
+
+			const riskScore = routeResult ? toNumber(routeResult.routePlan.risk_score, 0.3) : 0.3;
+			const distanceKm = routeResult ? toNumber(routeResult.routePlan.total_distance_km, 800) : 800;
+			const durationMin = routeResult ? toNumber(routeResult.routePlan.total_duration_min, 360) : 360;
 
 			const delay = await predictDelay({
 				shipment_id: shipment.id,
-				distance_km: routeResult.routePlan.total_distance_km,
-				weather_risk_score: routeResult.routePlan.risk_score,
-				traffic_risk_score: Math.min(1, toNumber(routeResult.routePlan.risk_score, 0) + 0.08),
-				congestion_score: Math.min(1, toNumber(routeResult.routePlan.risk_score, 0) + 0.05),
+				distance_km: distanceKm,
+				weather_risk_score: riskScore,
+				traffic_risk_score: Math.min(1, riskScore + 0.08),
+				congestion_score: Math.min(1, riskScore + 0.05),
 				disruptions_count: 0,
 				priority: shipment.priority,
-				current_eta_minutes: Math.max(120, toNumber(routeResult.routePlan.total_duration_min, 360)),
+				current_eta_minutes: Math.max(120, durationMin),
 				use_remote: false
 			});
 
@@ -386,7 +436,7 @@ export async function seedDemoData(options: SeedOptions = {}) {
 
 			seededShipments.push({
 				shipment: updatedShipment,
-				route_plan_id: routeResult.routePlan.id
+				route_plan_id: routeResult?.routePlan?.id ?? null
 			});
 		}
 

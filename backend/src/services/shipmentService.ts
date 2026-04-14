@@ -133,7 +133,7 @@ export async function createShipment(payload: ShipmentPayload) {
         longitude: shipment.current_longitude,
         description: payload.description || 'Shipment created',
         source: SHIPMENT_EVENT_SOURCES.includes(payload.source) ? payload.source : 'user',
-        metadata_json: payload.metadata_json || {}
+        metadata_json: JSON.stringify(payload.metadata_json || {})
       });
     }
 
@@ -198,7 +198,7 @@ export async function updateShipmentStatus(id: string, status: string, source = 
         longitude: shipment.current_longitude,
         description: `Shipment status updated to ${status}`,
         source: SHIPMENT_EVENT_SOURCES.includes(source) ? source : 'user',
-        metadata_json: { status }
+        metadata_json: JSON.stringify({ status })
       });
     }
 
@@ -238,7 +238,7 @@ export async function addShipmentLocation(id: string, payload: ShipmentPayload) 
       longitude: payload.longitude,
       description: payload.description || 'Shipment location updated',
       source: SHIPMENT_EVENT_SOURCES.includes(payload.source) ? payload.source : 'user',
-      metadata_json: payload.metadata_json || {}
+      metadata_json: JSON.stringify(payload.metadata_json || {})
     });
 
     return shipment;

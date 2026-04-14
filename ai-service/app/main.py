@@ -18,9 +18,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from app.schemas.models import PredictDelayRequest, DetectAnomalyRequest
+from app.schemas.models import PredictDelayRequest, DetectAnomalyRequest, ScoreRouteRequest, SimulateDisruptionRequest
 from app.services.prediction_service import load_models, predict_delay
 from app.services.disruption_detector import load_anomaly_models, detect_anomaly
+from app.services.route_optimizer import load_route_models, score_routes, recommend_route
+from app.services.simulation_service import load_simulation_models, simulate_disruption
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +55,8 @@ async def lifespan(app: FastAPI):
     print("[main] Loading ML models ...")
     load_models()
     load_anomaly_models()
+    load_route_models()
+    load_simulation_models()
     print("[main] Models loaded. Ready to serve predictions.")
     yield
     # Shutdown
@@ -105,22 +109,34 @@ async def detect_anomaly_endpoint(request: Request):
 @app.post("/ai/score-route")
 async def score_route_endpoint(request: Request):
     await verify_api_key(request)
-    # TODO: implement route scoring service
-    raise HTTPException(status_code=501, detail="Route scoring not yet implemented")
+
+    body = await request.json()
+    req = ScoreRouteRequest(**body)
+    result = score_routes(req)
+
+    return {"data": result.model_dump()}
 
 
 @app.post("/ai/recommend-route")
 async def recommend_route_endpoint(request: Request):
     await verify_api_key(request)
-    # TODO: implement route recommendation service
-    raise HTTPException(status_code=501, detail="Route recommendation not yet implemented")
+
+    body = await request.json()
+    req = ScoreRouteRequest(**body)
+    result = recommend_route(req)
+
+    return {"data": result.model_dump()}
 
 
 @app.post("/ai/simulate-disruption")
 async def simulate_disruption_endpoint(request: Request):
     await verify_api_key(request)
-    # TODO: implement disruption simulation service
-    raise HTTPException(status_code=501, detail="Disruption simulation not yet implemented")
+
+    body = await request.json()
+    req = SimulateDisruptionRequest(**body)
+    result = simulate_disruption(req)
+
+    return {"data": result.model_dump()}
 
 
 # ---------------------------------------------------------------------------

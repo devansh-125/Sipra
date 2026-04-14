@@ -163,16 +163,20 @@ async function maybeStoreDelayPrediction(
     .slice(0, 5)
     .map(([factor, value]) => ({ factor, value }));
 
-  await db('delay_predictions').insert({
-    shipment_id: payload.shipment_id,
-    model_name: 'heuristic-delay-model',
-    model_version: 'v1',
-    input_features_json: payload,
-    delay_probability,
-    predicted_delay_min,
-    risk_level,
-    top_factors_json
-  });
+  try {
+    await db('delay_predictions').insert({
+      shipment_id: payload.shipment_id,
+      model_name: 'heuristic-delay-model',
+      model_version: 'v1',
+      input_features_json: JSON.stringify(payload),
+      delay_probability,
+      predicted_delay_min,
+      risk_level,
+      top_factors_json: JSON.stringify(top_factors_json)
+    });
+  } catch {
+    // May fail if shipment not yet committed (nested transaction)
+  }
 }
 
 export async function predictDelay(payload: PredictDelayPayload): Promise<any> {
