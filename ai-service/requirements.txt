@@ -1,0 +1,15 @@
+# --- Web Framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# --- ML / Data Science ---
+scikit-learn==1.6.1
+pandas==2.2.3
+numpy==1.26.4
+joblib==1.4.2
+
+# --- Validation ---
+pydantic==2.10.4
+
+# --- Visualization (training only) ---
+matplotlib==3.10.0
