@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell.tsx';
 import PageHeader from '../../components/layout/PageHeader.tsx';
 import ShipmentSummaryCard from '../../components/shipment/ShipmentSummaryCard.tsx';
@@ -13,11 +14,9 @@ import LastUpdatedStamp from '../../components/realtime/LastUpdatedStamp.tsx';
 import RealtimeStatusBadge from '../../components/realtime/RealtimeStatusBadge.tsx';
 import { useShipmentDetail } from '../../hooks/useShipmentDetail.ts';
 
-type ShipmentDetailPageProps = {
-  shipmentId?: string;
-};
+export default function ShipmentDetailPage() {
+  const { shipmentId } = useParams<{ shipmentId: string }>();
 
-export default function ShipmentDetailPage({ shipmentId }: ShipmentDetailPageProps) {
   const { isLoading, isRefreshing, error, data, refresh, realtime } = useShipmentDetail({
     shipmentId,
     autoSelectIfMissing: true,

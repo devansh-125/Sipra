@@ -5,86 +5,14 @@ import LoadingBlock from '../common/LoadingBlock.tsx';
 import StatusBadge from '../common/StatusBadge.tsx';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { Shipment } from '../../types/shipment.ts';
+import type { ShipmentRecord, ShipmentEvent } from '../../types/shipment.ts';
 import { getStatusTone } from '../../utils/statusColors.ts';
+import { formatRelativeTime } from '../../utils/formatters.ts';
+import { toNumber, rankShipment, parseApiError } from '../../utils/helpers.ts';
 
 type ShipmentTimelineProps = {
   shipmentId?: string;
 };
-
-type ShipmentRecord = Shipment & {
-  updated_at?: string | null;
-  delay_probability?: number | null;
-  predicted_delay_min?: number | null;
-  risk_level?: string | null;
-};
-
-type ShipmentEvent = {
-  id: string;
-  shipment_id: string;
-  event_type: 'created' | 'moved' | 'delayed' | 'rerouted' | 'delivered' | string;
-  node_id?: string | null;
-  latitude?: number | string | null;
-  longitude?: number | string | null;
-  description?: string | null;
-  event_time: string;
-  source?: 'simulator' | 'user' | 'rule_engine' | 'AI' | string;
-  metadata_json?: Record<string, unknown> | null;
-};
-
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function clamp(value: number, min = 0, max = 1): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function rankShipment(shipment: ShipmentRecord): number {
-  const probability = clamp(toNumber(shipment.delay_probability, 0));
-  const delayWeight = Math.min(1, toNumber(shipment.predicted_delay_min, 0) / 240);
-  const level = String(shipment.risk_level || '').toLowerCase();
-  const levelWeight = level === 'critical' ? 1 : level === 'high' ? 0.8 : level === 'medium' ? 0.55 : 0.2;
-  return Math.max(probability, levelWeight * 0.65 + delayWeight * 0.35);
-}
-
-function parseErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return 'Unable to load shipment timeline';
-  }
-
-  try {
-    const parsed = JSON.parse(error.message) as { message?: string };
-    return parsed.message || error.message;
-  } catch {
-    return error.message;
-  }
-}
-
-function toRelativeTime(timestamp: string): string {
-  const parsed = Date.parse(timestamp);
-  if (Number.isNaN(parsed)) {
-    return 'just now';
-  }
-
-  const seconds = Math.max(0, Math.round((Date.now() - parsed) / 1000));
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 function formatEventType(value: string): string {
   return value.replace(/_/g, ' ');
@@ -185,7 +113,7 @@ export default function ShipmentTimeline({ shipmentId }: ShipmentTimelineProps) 
 
       setEvents(sorted);
     } catch (loadError) {
-      setError(parseErrorMessage(loadError));
+      setError(parseApiError(loadError, 'Unable to load shipment timeline'));
       setTargetShipment(null);
       setEvents([]);
     } finally {
@@ -296,7 +224,7 @@ export default function ShipmentTimeline({ shipmentId }: ShipmentTimelineProps) 
                           <p className="mt-1 text-[11px] text-slate-300">{formatEventDescription(event)}</p>
                         </div>
                         <div className="text-right text-[11px] text-slate-400">
-                          <p>{toRelativeTime(event.event_time)}</p>
+                          <p>{formatRelativeTime(event.event_time)}</p>
                           <p>{new Date(event.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                       </div>

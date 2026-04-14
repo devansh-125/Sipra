@@ -1,110 +1,31 @@
 import { apiRequest } from './httpClient.ts';
 import type { ApiResponse } from '../../types/api.ts';
+import type {
+  BottlenecksResponse,
+  DashboardOverviewResponse,
+  DashboardSummaryResponse,
+  DelayTrendRow,
+  MapDataResponse,
+  RiskDistributionResponse
+} from '../../types/dashboard.ts';
 
-export type DashboardSummaryResponse = {
-  shipments: {
-    total: number;
-    pending: number;
-    in_transit: number;
-    delayed: number;
-    delivered: number;
-    cancelled: number;
-  };
-  disruptions: {
-    active: number;
-  };
-  alerts: {
-    open: number;
-  };
-  delays: {
-    avg_predicted_delay_min: number;
-    avg_delay_probability: number;
-  };
-};
-
-export type DelayTrendRow = {
-  day: string;
-  delayed_count: number;
-  delivered_count: number;
-  avg_predicted_delay_min: number;
-};
-
-export type BottleneckNode = {
-  id: string;
-  name: string;
-  city?: string;
-  country?: string;
-  type?: string;
-  capacity_score?: number | string;
-  congestion_score?: number | string;
-  event_count?: number | string;
-};
-
-export type BottleneckEdge = {
-  id: string;
-  from_node_id: string;
-  to_node_id: string;
-  transport_mode?: string;
-  current_risk_score?: number | string;
-  is_blocked?: boolean;
-  segment_count?: number | string;
-};
-
-export type BottlenecksResponse = {
-  nodes: BottleneckNode[];
-  edges: BottleneckEdge[];
-};
-
-export type DashboardMapShipment = {
-  id: string;
-  tracking_number: string;
-  status: string;
-  priority?: string;
-  latitude: number | string;
-  longitude: number | string;
-};
-
-export type DashboardMapDisruption = {
-  id: string;
-  type: string;
-  severity: number | string;
-  status: string;
-  title?: string;
-  starts_at?: string;
-  ends_at?: string | null;
-  latitude: number | string;
-  longitude: number | string;
-};
-
-export type DashboardMapNode = {
-  id: string;
-  name: string;
-  type: string;
-  city?: string;
-  country?: string;
-  latitude: number | string;
-  longitude: number | string;
-};
-
-export type MapDataResponse = {
-  shipments: DashboardMapShipment[];
-  disruptions: DashboardMapDisruption[];
-  nodes: DashboardMapNode[];
-};
-
-export type RiskDistributionResponse = {
-  shipments: Array<{ risk_level: string; count: number }>;
-  disruptions: Array<{ severity_bucket: string; count: number }>;
-  routes: Array<{ risk_bucket: string; count: number }>;
-};
-
-export type DashboardOverviewResponse = {
-  summary: DashboardSummaryResponse;
-  delayTrends: DelayTrendRow[];
-  bottlenecks: BottlenecksResponse;
-  mapData: MapDataResponse;
-  riskDistribution: RiskDistributionResponse;
-};
+export type {
+  BottleneckEdge,
+  BottleneckNode,
+  BottlenecksResponse,
+  DashboardAlertSummary,
+  DashboardDelaySummary,
+  DashboardDisruptionSummary,
+  DashboardMapDisruption,
+  DashboardMapNode,
+  DashboardMapShipment,
+  DashboardOverviewResponse,
+  DashboardShipmentSummary,
+  DashboardSummaryResponse,
+  DelayTrendRow,
+  MapDataResponse,
+  RiskDistributionResponse
+} from '../../types/dashboard.ts';
 
 function toInt(value: unknown, fallback: number): number {
   const parsed = Number.parseInt(String(value), 10);

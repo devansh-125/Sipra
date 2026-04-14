@@ -11,12 +11,13 @@ import RealtimeStatusBadge from '../../components/realtime/RealtimeStatusBadge.t
 import LastUpdatedStamp from '../../components/realtime/LastUpdatedStamp.tsx';
 import { useDashboardData } from '../../hooks/useDashboardData.ts';
 import { useRealtime } from '../../hooks/useRealtime.ts';
+import { DASHBOARD_REFRESH_INTERVAL_MS } from '../../utils/constants.ts';
 
 export default function DashboardPage() {
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const { data, error, isLoading, isRefreshing, refresh } = useDashboardData({
-    refreshIntervalMs: 20000,
+    refreshIntervalMs: DASHBOARD_REFRESH_INTERVAL_MS,
     mapLimit: 350,
     bottleneckLimit: 12,
     alertLimit: 30

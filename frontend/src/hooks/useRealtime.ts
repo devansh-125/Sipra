@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { createSocketClient, type RealtimeEventHandler } from '../services/realtime/socketClient.ts';
-
-export type RealtimeConnectionState = 'connected' | 'reconnecting' | 'disconnected';
-
-type UseRealtimeOptions = {
-  autoConnect?: boolean;
-  namespace?: string;
-};
+import type { RealtimeConnectionState, RealtimeEventName, UseRealtimeOptions, UseRealtimeResult } from '../types/realtime.ts';
 
 type BridgeSocket = Socket & {
   __copilotBridgeAttached?: boolean;
@@ -83,7 +77,7 @@ function parseSocketError(error: unknown): string {
   return error.message || 'Realtime connection error';
 }
 
-export function useRealtime(options: UseRealtimeOptions = {}) {
+export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeResult {
   const { autoConnect = true, namespace = '/' } = options;
 
   const socket = useMemo(() => ensureSharedSocket(namespace), [namespace]);
@@ -156,20 +150,20 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
     };
   }, [autoConnect, socket]);
 
-  const on = useCallback((eventName: string, handler: RealtimeEventHandler) => {
+  const on = useCallback((eventName: RealtimeEventName, handler: RealtimeEventHandler) => {
     sharedClient.on(eventName, handler);
   }, []);
 
-  const off = useCallback((eventName: string, handler: RealtimeEventHandler) => {
+  const off = useCallback((eventName: RealtimeEventName, handler: RealtimeEventHandler) => {
     sharedClient.off(eventName, handler);
   }, []);
 
-  const emitLocal = useCallback((eventName: string, payload: unknown) => {
+  const emitLocal = useCallback((eventName: RealtimeEventName, payload: unknown) => {
     sharedClient.emitLocal(eventName, payload);
   }, []);
 
   const emit = useCallback(
-    (eventName: string, payload: unknown) => {
+    (eventName: RealtimeEventName, payload: unknown) => {
       if (!socket.connected && autoConnect) {
         socket.connect();
         setConnectionState('reconnecting');
