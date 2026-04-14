@@ -4,14 +4,9 @@ import StatusBadge from '../common/StatusBadge.tsx';
 import { routesApi } from '../../services/api/routesApi.ts';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { Shipment } from '../../types/shipment.ts';
+import type { ShipmentRecord } from '../../types/shipment.ts';
 import { formatMinutesToEta, formatPercent } from '../../utils/formatters.ts';
-
-type ShipmentRecord = Shipment & {
-  delay_probability?: number | null;
-  predicted_delay_min?: number | null;
-  risk_level?: string | null;
-};
+import { toNumber, rankShipment, parseApiError } from '../../utils/helpers.ts';
 
 type AlternativeRoute = {
   shipment_id: string;
@@ -23,19 +18,6 @@ type RerouteActionCardProps = {
   shipmentId?: string;
 };
 
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function rankShipment(shipment: ShipmentRecord): number {
-  const probability = toNumber(shipment.delay_probability, 0);
-  const predictedDelayWeight = Math.min(1, toNumber(shipment.predicted_delay_min, 0) / 240);
-  const riskLevel = String(shipment.risk_level || '').toLowerCase();
-  const riskLevelWeight = riskLevel === 'critical' ? 1 : riskLevel === 'high' ? 0.8 : riskLevel === 'medium' ? 0.55 : 0.2;
-  return Math.max(probability, riskLevelWeight * 0.7 + predictedDelayWeight * 0.3);
-}
-
 function formatEtaDelta(minutes: number): string {
   if (minutes === 0) {
     return 'No ETA change';
@@ -46,20 +28,6 @@ function formatEtaDelta(minutes: number): string {
   }
 
   return `${formatMinutesToEta(minutes)} slower`;
-}
-
-function parseErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return 'Action failed';
-  }
-
-  const raw = error.message;
-  try {
-    const parsed = JSON.parse(raw) as { message?: string };
-    return parsed.message || raw;
-  } catch {
-    return raw;
-  }
 }
 
 export default function RerouteActionCard({ shipmentId }: RerouteActionCardProps) {
@@ -105,7 +73,7 @@ export default function RerouteActionCard({ shipmentId }: RerouteActionCardProps
         setTopAlternative(null);
       }
     } catch (loadError) {
-      setError(parseErrorMessage(loadError));
+      setError(parseApiError(loadError, 'Action failed'));
       setTargetShipment(null);
       setTopAlternative(null);
     } finally {
@@ -142,7 +110,7 @@ export default function RerouteActionCard({ shipmentId }: RerouteActionCardProps
       setResult(`Reroute triggered for ${targetShipment.tracking_number}.`);
       await loadSuggestion();
     } catch (submitError) {
-      setError(parseErrorMessage(submitError));
+      setError(parseApiError(submitError, 'Action failed'));
     } finally {
       setIsSubmitting(false);
     }

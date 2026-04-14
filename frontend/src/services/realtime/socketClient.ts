@@ -1,15 +1,6 @@
-export type RealtimeEventHandler = (payload: unknown) => void;
+import type { RealtimeEventHandler, RealtimeEventName, RealtimeSocketClient } from '../../types/realtime.ts';
 
-export type RealtimeSocketClient = {
-  on: (eventName: string, handler: RealtimeEventHandler) => () => void;
-  once: (eventName: string, handler: RealtimeEventHandler) => () => void;
-  off: (eventName: string, handler: RealtimeEventHandler) => void;
-  offAll: (eventName?: string) => void;
-  emitLocal: (eventName: string, payload: unknown) => void;
-  listenerCount: (eventName: string) => number;
-  eventNames: () => string[];
-  clear: () => void;
-};
+export type { RealtimeEventHandler, RealtimeSocketClient };
 
 function safeInvoke(handler: RealtimeEventHandler, payload: unknown): void {
   try {
@@ -41,7 +32,7 @@ export function createSocketClient(): RealtimeSocketClient {
   }
 
   return {
-    on(eventName: string, handler: RealtimeEventHandler) {
+    on(eventName: RealtimeEventName, handler: RealtimeEventHandler) {
       const current = ensureSet(eventName);
       current.add(handler);
 
@@ -50,7 +41,7 @@ export function createSocketClient(): RealtimeSocketClient {
         removeIfEmpty(eventName);
       };
     },
-    once(eventName: string, handler: RealtimeEventHandler) {
+    once(eventName: RealtimeEventName, handler: RealtimeEventHandler) {
       const wrapped: RealtimeEventHandler = (payload) => {
         this.off(eventName, wrapped);
         safeInvoke(handler, payload);
@@ -58,12 +49,12 @@ export function createSocketClient(): RealtimeSocketClient {
 
       return this.on(eventName, wrapped);
     },
-    off(eventName: string, handler: RealtimeEventHandler) {
+    off(eventName: RealtimeEventName, handler: RealtimeEventHandler) {
       const current = handlers.get(eventName);
       current?.delete(handler);
       removeIfEmpty(eventName);
     },
-    offAll(eventName?: string) {
+    offAll(eventName?: RealtimeEventName) {
       if (eventName) {
         handlers.delete(eventName);
         return;
@@ -71,7 +62,7 @@ export function createSocketClient(): RealtimeSocketClient {
 
       handlers.clear();
     },
-    emitLocal(eventName: string, payload: unknown) {
+    emitLocal(eventName: RealtimeEventName, payload: unknown) {
       const current = handlers.get(eventName);
       if (!current || current.size === 0) {
         return;
@@ -83,7 +74,7 @@ export function createSocketClient(): RealtimeSocketClient {
         safeInvoke(handler, payload);
       }
     },
-    listenerCount(eventName: string) {
+    listenerCount(eventName: RealtimeEventName) {
       return handlers.get(eventName)?.size || 0;
     },
     eventNames() {

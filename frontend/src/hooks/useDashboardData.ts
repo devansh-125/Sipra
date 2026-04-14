@@ -4,73 +4,19 @@ import { alertsApi } from '../services/api/alertsApi.ts';
 import { shipmentsApi } from '../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../types/api.ts';
 import type { AlertItem } from '../types/alert.ts';
+import type {
+  BottlenecksResponse,
+  DashboardDataBundle,
+  DashboardSummaryResponse,
+  DelayTrendRow,
+  MapDataResponse,
+  RiskDistributionResponse,
+  UseDashboardDataOptions
+} from '../types/dashboard.ts';
 import type { Shipment } from '../types/shipment.ts';
 import { POLLING_INTERVAL_MS } from '../utils/constants.ts';
 
-type DashboardSummaryResponse = {
-  shipments: {
-    total: number;
-    pending: number;
-    in_transit: number;
-    delayed: number;
-    delivered: number;
-    cancelled: number;
-  };
-  disruptions: {
-    active: number;
-  };
-  alerts: {
-    open: number;
-  };
-  delays: {
-    avg_predicted_delay_min: number;
-    avg_delay_probability: number;
-  };
-};
-
-type DelayTrendRow = {
-  day: string;
-  delayed_count: number;
-  delivered_count: number;
-  avg_predicted_delay_min: number;
-};
-
-type BottlenecksResponse = {
-  nodes: Array<Record<string, unknown>>;
-  edges: Array<Record<string, unknown>>;
-};
-
-type MapDataResponse = {
-  shipments: Array<Record<string, unknown>>;
-  disruptions: Array<Record<string, unknown>>;
-  nodes: Array<Record<string, unknown>>;
-};
-
-type RiskDistributionResponse = {
-  shipments: Array<{ risk_level: string; count: number }>;
-  disruptions: Array<{ severity_bucket: string; count: number }>;
-  routes: Array<{ risk_bucket: string; count: number }>;
-};
-
-export type DashboardDataBundle = {
-  summary: DashboardSummaryResponse | null;
-  delayTrends: DelayTrendRow[];
-  bottlenecks: BottlenecksResponse;
-  mapData: MapDataResponse;
-  riskDistribution: RiskDistributionResponse | null;
-  alerts: AlertItem[];
-  shipments: Shipment[];
-  fetchedAt: string | null;
-};
-
-type UseDashboardDataOptions = {
-  enabled?: boolean;
-  refreshIntervalMs?: number;
-  delayTrendDays?: number;
-  bottleneckLimit?: number;
-  mapLimit?: number;
-  alertLimit?: number;
-};
+export type { DashboardDataBundle } from '../types/dashboard.ts';
 
 type RefreshOptions = {
   silent?: boolean;

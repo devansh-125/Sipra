@@ -1,4 +1,4 @@
-type StatusTone = 'green' | 'yellow' | 'red' | 'blue' | 'gray';
+import type { StatusTone } from '../../utils/statusColors.ts';
 
 type StatusBadgeProps = {
   text: string;

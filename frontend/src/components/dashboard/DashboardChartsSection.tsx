@@ -20,37 +20,13 @@ import LoadingBlock from '../common/LoadingBlock.tsx';
 import { dashboardApi } from '../../services/api/dashboardApi.ts';
 import { shipmentsApi } from '../../services/api/shipmentsApi.ts';
 import type { ApiResponse } from '../../types/api.ts';
-
-type DelayTrendRow = {
-  day: string;
-  delayed_count: number;
-  delivered_count: number;
-  avg_predicted_delay_min: number;
-};
-
-type RiskDistributionResponse = {
-  shipments: Array<{ risk_level: string; count: number }>;
-  disruptions: Array<{ severity_bucket: string; count: number }>;
-  routes: Array<{ risk_bucket: string; count: number }>;
-};
-
-type BottlenecksResponse = {
-  nodes: Array<Record<string, unknown>>;
-  edges: Array<{
-    transport_mode?: string;
-    current_risk_score?: number | string;
-    is_blocked?: boolean;
-  }>;
-};
-
-type MapDataResponse = {
-  shipments: Array<Record<string, unknown>>;
-  disruptions: Array<{
-    type?: string;
-    status?: string;
-  }>;
-  nodes: Array<Record<string, unknown>>;
-};
+import type {
+  DelayTrendRow,
+  RiskDistributionResponse,
+  BottlenecksResponse,
+  MapDataResponse
+} from '../../types/dashboard.ts';
+import { toNumber } from '../../utils/helpers.ts';
 
 type ShipmentListItem = {
   carrier_id?: string | null;
@@ -89,11 +65,6 @@ type CarrierPerformancePoint = {
 };
 
 const PIE_COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#0ea5e9', '#94a3b8'];
-
-function toNumber(value: unknown, fallback = 0): number {
-  const parsed = Number.parseFloat(String(value));
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
 
 function toLabelCase(value: string): string {
   if (!value) {

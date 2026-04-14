@@ -1,65 +1,29 @@
 import { apiRequest } from './httpClient.ts';
 import type { ApiResponse } from '../../types/api.ts';
-import type { Disruption } from '../../types/disruption.ts';
+import type {
+  DetectDisruptionPayload,
+  DetectDisruptionResponse,
+  DisruptionListQuery,
+  DisruptionRecord,
+  ResolveDisruptionPayload,
+  ResolveManyDisruptionsResult,
+  SimulateDisruptionPayload
+} from '../../types/disruption.ts';
 
-export type DisruptionStatus = 'active' | 'resolved';
-export type DisruptionType = 'weather' | 'congestion' | 'blockage' | 'vehicle_issue';
-export type DisruptionSource = 'rule_engine' | 'AI' | 'simulator' | 'manual';
-
-export type DisruptionRecord = Disruption & {
-  description?: string | null;
-  source?: DisruptionSource | string;
-  node_id?: string | null;
-  edge_id?: string | null;
-  affected_radius_km?: number | string;
-  starts_at?: string;
-  ends_at?: string | null;
-  updated_at?: string;
-};
-
-export type DisruptionListQuery = {
-  status?: DisruptionStatus;
-  type?: DisruptionType;
-  source?: DisruptionSource;
-  node_id?: string;
-  edge_id?: string;
-  severity_gte?: number;
-  severity_lte?: number;
-  limit?: number;
-  offset?: number;
-};
-
-export type SimulateDisruptionPayload = {
-  type?: DisruptionType;
-  severity?: number;
-  node_id?: string;
-  edge_id?: string;
-  latitude?: number;
-  longitude?: number;
-  affected_radius_km?: number;
-  starts_at?: string;
-  ends_at?: string;
-  title?: string;
-  description?: string;
-  source?: DisruptionSource;
-};
-
-export type DetectDisruptionPayload = {
-  threshold?: number;
-  limit?: number;
-};
-
-export type ResolveDisruptionPayload = {
-  ends_at?: string;
-  resolution_note?: string;
-};
-
-export type DetectDisruptionResponse = {
-  threshold: number;
-  inspected_edges: number;
-  created_count: number;
-  disruptions: DisruptionRecord[];
-};
+export type {
+  DetectDisruptionPayload,
+  DetectDisruptionResponse,
+  Disruption,
+  DisruptionListQuery,
+  DisruptionRealtimeEvent,
+  DisruptionRecord,
+  DisruptionSource,
+  DisruptionStatus,
+  DisruptionType,
+  ResolveDisruptionPayload,
+  ResolveManyDisruptionsResult,
+  SimulateDisruptionPayload
+} from '../../types/disruption.ts';
 
 function toInt(value: unknown): number | undefined {
   const parsed = Number.parseInt(String(value), 10);
@@ -165,7 +129,7 @@ export const disruptionsApi = {
       method: 'PATCH',
       body: JSON.stringify(payload || {})
     }),
-  resolveMany: async (disruptionIds: string[], payload?: ResolveDisruptionPayload) => {
+  resolveMany: async (disruptionIds: string[], payload?: ResolveDisruptionPayload): Promise<ResolveManyDisruptionsResult> => {
     const uniqueIds = Array.from(
       new Set(disruptionIds.filter((id) => typeof id === 'string' && id.trim().length > 0))
     );
